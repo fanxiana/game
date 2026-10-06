@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#eef4ff">
+<title>三角函数闯关 · 单位圆与函数图像</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: 14px 12px 28px;
+    font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #1e293b;
+    background: linear-gradient(135deg, #eef4ff 0%, #f8fafc 45%, #ecfdf5 100%);
+    display: flex;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+
+  .app { width: min(1180px, 100%); display: flex; flex-direction: column; position: relative; }
+
+  h1 { font-size: 19px; margin: 0 0 4px; letter-spacing: .4px; }
+  .subtitle { margin: 0 0 12px; font-size: 12.5px; color: #64748b; }
+
+  /* ---------- 状态栏 ---------- */
+  .hud { display: flex; gap: 9px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .hud-item {
+    background: #fff; border-radius: 10px; padding: 6px 13px;
+    font-size: 12.5px; color: #64748b; display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 3px 12px rgba(15, 23, 42, .07);
+  }
+  .hud-item b { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 16px; color: #1e293b; }
+  .hud-item.lives b { color: #ef4444; letter-spacing: 2px; font-size: 15px; }
+
+  /* ---------- 画布 ---------- */
+  .stage { order: 1; display: grid; grid-template-columns: 1fr 1.3fr; gap: 14px; height: 340px; }
+  .panel {
+    background: #fff; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 8px 26px rgba(15, 23, 42, .09);
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* ---------- 答题区 ---------- */
+  .card {
+    order: 2; margin-top: 14px; padding: 15px 16px 16px;
+    background: #fff; border-radius: 14px;
+    box-shadow: 0 8px 26px rgba(15, 23, 42, .09);
+  }
+  .timer { height: 6px; border-radius: 3px; background: #e2e8f0; overflow: hidden; margin-bottom: 13px; }
+  .timer-fill {
+    height: 100%; width: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, #22c55e, #84cc16);
+  }
+  .timer-fill.warn   { background: linear-gradient(90deg, #f59e0b, #f97316); }
+  .timer-fill.danger { background: linear-gradient(90deg, #ef4444, #f43f5e); }
+
+  .qtext { font-size: 16.5px; font-weight: 600; margin: 0 0 13px; line-height: 1.6; }
+  .qtext .angle { color: #3b82f6; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .qtext .fn { color: #10b981; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+  .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 9px; }
+  .opt {
+    border: 2px solid #e2e8f0; background: #f8fafc; border-radius: 11px;
+    padding: 12px 8px; font-size: 17px; font-weight: 600; color: #1e293b;
+    cursor: pointer; transition: border-color .15s, background .15s, color .15s;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  .opt:hover:not(:disabled) { border-color: #93c5fd; background: #eff6ff; }
+  .opt.correct { border-color: #22c55e; background: #dcfce7; color: #15803d; }
+  .opt.wrong   { border-color: #ef4444; background: #fee2e2; color: #b91c1c; }
+  .opt:disabled { cursor: default; }
+
+  .feedback { margin-top: 11px; font-size: 13.5px; line-height: 1.75; color: #475569; min-height: 20px; }
+  .feedback .ok { color: #15803d; font-weight: 700; }
+  .feedback .no { color: #b91c1c; font-weight: 700; }
+  .feedback b { color: #1e293b; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+  /* ---------- 遮罩 ---------- */
+  .overlay {
+    position: absolute; inset: 0; z-index: 10; padding: 18px;
+    background: rgba(248, 250, 252, .9);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay.hide { display: none; }
+  .overlay-box {
+    background: #fff; border-radius: 18px; padding: 26px 24px; text-align: center;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, .18); max-width: 420px; width: 100%;
+  }
+  .overlay-box h2 { margin: 0 0 10px; font-size: 20px; }
+  .overlay-box p { margin: 0 0 18px; font-size: 13.5px; line-height: 1.85; color: #64748b; text-align: left; }
+  .overlay-box .big { font-size: 34px; font-weight: 700; color: #3b82f6; margin: 6px 0 4px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+  .btn {
+    border: none; padding: 13px 34px; border-radius: 12px;
+    font-size: 16px; font-weight: 700; color: #fff; cursor: pointer;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    box-shadow: 0 6px 18px rgba(59, 130, 246, .4);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .btn:hover  { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(59, 130, 246, .48); }
+  .btn:active { transform: translateY(0); }
+
+  @media (max-width: 880px) {
+    .stage { order: 2; grid-template-columns: 1fr; height: auto; margin-top: 14px; }
+    .panel { height: 210px; }
+    .card { order: 1; margin-top: 0; }
+    h1 { font-size: 17px; }
+    .options { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <h1>三角函数闯关</h1>
+  <p class="subtitle">看单位圆上的角 θ，判断 sin θ / cos θ 的符号、大小与取值</p>
+
+  <div class="hud">
+    <div class="hud-item">得分 <b id="score">0</b></div>
+    <div class="hud-item">连击 <b id="combo">0</b></div>
+    <div class="hud-item lives">生命 <b id="lives">♥♥♥</b></div>
+  </div>
+
+  <div class="stage">
+    <div class="panel"><canvas id="circleCanvas"></canvas></div>
+    <div class="panel"><canvas id="graphCanvas"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="timer"><div class="timer-fill" id="timerBar"></div></div>
+    <div class="qtext" id="questionText">准备好了吗？</div>
+    <div class="options" id="options"></div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="overlay-box">
+      <h2 id="overlayTitle">三角函数闯关</h2>
+      <p id="overlayText">
+        · 每题给出一个角 <b>θ</b>，在 12 秒内作答<br>
+        · 题目会考查 <b>符号</b>、<b>大小比较</b> 或 <b>具体取值</b><br>
+        · 答对得分，连击越高加分越多，剩余时间也算奖励<br>
+        · 答错或超时扣一颗心，3 颗心用完游戏结束
+      </p>
+      <button class="btn" id="startBtn">开始挑战</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================= DOM ================= */
+  const circleCanvas = document.getElementById('circleCanvas');
+  const graphCanvas  = document.getElementById('graphCanvas');
+  const cctx = circleCanvas.getContext('2d');
+  const gctx = graphCanvas.getContext('2d');
+
+  const scoreEl    = document.getElementById('score');
+  const comboEl    = document.getElementById('combo');
+  const livesEl    = document.getElementById('lives');
+  const timerBar   = document.getElementById('timerBar');
+  const questionEl = document.getElementById('questionText');
+  const optionsEl  = document.getElementById('options');
+  const feedbackEl = document.getElementById('feedback');
+  const overlay    = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlayText  = document.getElementById('overlayText');
+  const startBtn     = document.getElementById('startBtn');
+
+  /* ================= 常量 ================= */
+  const COL = {
+    radius: '#3b82f6', sin: '#10b981', cos: '#f59e0b',
+    axis: '#cbd5e1', grid: '#eef2f7', circle: '#94a3b8'
+  };
+  const ANGLES  = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330];
+  const EXACTS  = ['0', '1/2', '√2/2', '√3/2', '1', '-1/2', '-√2/2', '-√3/2', '-1'];
+  const KNOWN   = [
+    { v: 0,                    t: '0'     },
+    { v: 0.5,                  t: '1/2'   },
+    { v: Math.SQRT1_2,         t: '√2/2'  },
+    { v: Math.sqrt(3) / 2,     t: '√3/2'  },
+    { v: 1,                    t: '1'     }
+  ];
+  const TIME_MAX = 12;          // 每题秒数
+  const TIME_NEXT = 1500;       // 揭晓答案后停留毫秒
+  const MAX_LIVES = 3;
+
+  /* ================= 工具 ================= */
+  const fix = v => { const r = Math.round(v * 1e12) / 1e12; return Math.abs(r) < 1e-9 ? 0 : r; };
+
+  function exactText(v) {
+    const a = Math.abs(v);
+    for (const k of KNOWN) {
+      if (Math.abs(a - k.v) < 1e-9) {
+        if (k.v === 0) return '0';
+        return (v < 0 ? '-' : '') + k.t;
+      }
+    }
+    return v.toFixed(3);
+  }
+
+  const gcd = (a, b) => b ? gcd(b, a % b) : a;
+  function piText(deg) {
+    if (deg === 0) return '0';
+    let n = deg, d = 180;
+    const g = gcd(n, d); n /= g; d /= g;
+    const head = n === 1 ? 'π' : n + 'π';
+    return d === 1 ? head : head + '/' + d;
+  }
+
+  const rnd  = arr => arr[Math.floor(Math.random() * arr.length)];
+  const shuffle = arr => arr.map(v => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(p => p[1]);
+
+  function fitCanvas(canvas, ctx) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width));
+    const h = Math.max(1, Math.round(rect.height));
+    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+      canvas.width  = w * dpr;
+      canvas.height = h * dpr;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w, h };
+  }
+
+  /* ================= 状态 ================= */
+  const S = {
+    theta: 0,          // 当前显示角度
+    target: 0,         // 动画目标角度
+    reveal: false,     // 是否已揭晓
+    revealT: 0,        // 揭晓动画进度 0~1
+    score: 0,
+    combo: 0,
+    best: 0,
+    lives: MAX_LIVES,
+    running: false,
+    locked: true,
+    timeLeft: 0,
+    q: null,
+    btns: [],
+    lastTs: 0,
+    nextTimer: null
+  };
+
+  /* ================= 出题 ================= */
+  const TYPES = ['signSin', 'signCos', 'signSin', 'signCos', 'compare', 'compare', 'valueSin', 'valueCos'];
+
+  function buildQuestion() {
+    const deg = rnd(ANGLES);
+    const rad = deg * Math.PI / 180;
+    const sinV = fix(Math.sin(rad));
+    const cosV = fix(Math.cos(rad));
+    const type = rnd(TYPES);
+
+    const q = { deg, sin: sinV, cos: cosV, type, answer: 0, options: [], prompt: '', hint: '' };
+
+    if (type === 'signSin' || type === 'signCos') {
+      const isSin = type === 'signSin';
+      const v = isSin ? sinV : cosV;
+      const name = isSin ? 'sin θ' : 'cos θ';
+      const labels = ['正数 (+)', '负数 (−)', '等于 0'];
+      const keys = labels.map((_, i) => i);
+      const correct = v > 0 ? 0 : v < 0 ? 1 : 2;
+      const order = shuffle(keys);
+      q.options = order.map(i => labels[i]);
+      q.answer  = order.indexOf(correct);
+      q.prompt  = 'θ = <span class="angle">{D}</span>，<span class="fn">{F}</span> 的符号是？'
+                    .replace('{D}', deg + '°（' + piText(deg) + '）').replace('{F}', name);
+    }
+    else if (type === 'compare') {
+      const labels = ['sin θ 更大', 'cos θ 更大', '两者相等'];
+      let correct;
+      if (Math.abs(sinV - cosV) < 1e-9) correct = 2;
+      else correct = sinV > cosV ? 0 : 1;
+      const order = shuffle([0, 1, 2]);
+      q.options = order.map(i => labels[i]);
+      q.answer  = order.indexOf(correct);
+      q.prompt  = 'θ = <span class="angle">{D}</span>，比较 <span class="fn">sin θ</span> 与 <span class="fn">cos θ</span> 的大小'
+                    .replace('{D}', deg + '°（' + piText(deg) + '）');
+    }
+    else {
+      const isSin = type === 'valueSin';
+      const v = isSin ? sinV : cosV;
+      const name = isSin ? 'sin θ' : 'cos θ';
+      const right = exactText(v);
+      const others = EXACTS.filter(t => t !== right);
+      // 优先放一些“像”的干扰项
+      const tricky = others.filter(t =>
+        t === exactText(-v) || t === exactText(isSin ? cosV : sinV));
+      const rest = shuffle(others.filter(t => tricky.indexOf(t) === -1));
+      const pool = shuffle(tricky).concat(rest).slice(0, 3);
+      const list = shuffle([right].concat(pool));
+      q.options = list;
+      q.answer  = list.indexOf(right);
+      q.prompt  = 'θ = <span class="angle">{D}</span>，<span class="fn">{F}</span> = ?'
+                    .replace('{D}', deg + '°（' + piText(deg) + '）').replace('{F}', name);
+    }
+    return q;
+  }
+
+  function answerLine(q) {
+    return 'θ = <b>' + q.deg + '°</b>，sin θ = <b>' + exactText(q.sin) + '</b>（' + q.sin.toFixed(3) +
+           '），cos θ = <b>' + exactText(q.cos) + '</b>（' + q.cos.toFixed(3) + '）';
+  }
+
+  /* ================= 流程 ================= */
+  function startGame() {
+    S.score = 0; S.combo = 0; S.best = 0; S.lives = MAX_LIVES;
+    S.running = true; S.theta = 0; S.target = 0;
+    updateHUD();
+    overlay.classList.add('hide');
+    nextQuestion();
+  }
+
+  function nextQuestion() {
+    const q = buildQuestion();
+    S.q = q;
+    S.target = q.deg;
+    S.reveal = false;
+    S.revealT = 0;
+    S.locked = false;
+    S.timeLeft = TIME_MAX;
+
+    questionEl.innerHTML = q.prompt;
+    feedbackEl.innerHTML = '';
+    timerBar.className = 'timer-fill';
+    timerBar.style.width = '100%';
+
+    optionsEl.innerHTML = '';
+    S.btns = [];
+    q.options.forEach((text, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt';
+      b.type = 'button';
+      b.textContent = text;
+      b.addEventListener('click', () => answer(i));
+      optionsEl.appendChild(b);
+      S.btns.push(b);
+    });
+  }
+
+  function answer(idx) {
+    if (S.locked || !S.running) return;
+    S.locked = true;
+    S.reveal = true;
+
+    const q = S.q;
+    const ok = idx === q.answer;
+
+    S.btns.forEach((b, i) => {
+      b.disabled = true;
+      if (i === q.answer) b.classList.add('correct');
+      else if (i === idx) b.classList.add('wrong');
+    });
+
+    if (ok) {
+      const gain = 100 + S.combo * 20 + Math.round(S.timeLeft * 10);
+      S.score += gain;
+      S.combo += 1;
+      S.best = Math.max(S.best, S.combo);
+      feedbackEl.innerHTML =
+        '<span class="ok">✓ 正确</span>　+<b>' + gain + '</b> 分' +
+        (S.combo > 1 ? '（连击 ×' + S.combo + '）' : '') +
+        '<br>' + answerLine(q);
+    } else {
+      S.lives -= 1;
+      S.combo = 0;
+      feedbackEl.innerHTML =
+        '<span class="no">' + (idx === -1 ? '⏱ 超时' : '✗ 答错了') + '</span>　正确答案：<b>' +
+        q.options[q.answer] + '</b><br>' + answerLine(q);
+    }
+    updateHUD();
+
+    clearTimeout(S.nextTimer);
+    S.nextTimer = setTimeout(() => {
+      if (S.lives <= 0) gameOver();
+      else nextQuestion();
+    }, TIME_NEXT);
+  }
+
+  function gameOver() {
+    S.running = false;
+    S.locked = true;
+    S.reveal = true;
+    overlayTitle.textContent = '挑战结束';
+    overlayText.innerHTML =
+      '最终得分<h3 class="big">' + S.score + '</h3>' +
+      '最高连击：<b>' + S.best + '</b> 连<br>' +
+      (S.score >= 2000 ? '三角函数象限符号与特殊角取值掌握得很扎实！' :
+       S.score >= 1000 ? '不错，再多练几轮把特殊角取值记牢就更稳了。' :
+                         '没关系，看着单位圆的投影线再想一遍，重新来一局吧。');
+    startBtn.textContent = '再来一局';
+    overlay.classList.remove('hide');
+  }
+
+  function updateHUD() {
+    scoreEl.textContent = S.score;
+    comboEl.textContent = S.combo;
+    livesEl.textContent = '♥'.repeat(Math.max(0, S.lives)) + '♡'.repeat(Math.max(0, MAX_LIVES - S.lives));
+  }
+
+  /* ================= 绘制：单位圆 ================= */
+  function drawCircle() {
+    const { w, h } = fitCanvas(circleCanvas, cctx);
+    const ctx = cctx;
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2, cy = h / 2;
+    const R  = Math.min(w, h) * 0.32;
+    const ang = S.theta * Math.PI / 180;
+    const px = cx + Math.cos(ang) * R;
+    const py = cy - Math.sin(ang) * R;
+
+    // 网格
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+    const step = R / 2;
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath(); ctx.moveTo(cx + i * step, cy - R - 14); ctx.lineTo(cx + i * step, cy + R + 14); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - R - 14, cy + i * step); ctx.lineTo(cx + R + 14, cy + i * step); ctx.stroke();
+    }
+
+    // 坐标轴
+    ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(cx - R - 16, cy); ctx.lineTo(cx + R + 16, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy - R - 16); ctx.lineTo(cx, cy + R + 16); ctx.stroke();
+
+    // 单位圆
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.strokeStyle = COL.circle; ctx.lineWidth = 1.8; ctx.stroke();
+
+    // 角弧
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.26, 0, -ang, true);
+    ctx.strokeStyle = COL.radius; ctx.lineWidth = 2; ctx.stroke();
+
+    // 揭晓后：正弦线 / 余弦线
+    const a = S.revealT;
+    if (a > 0) {
+      ctx.globalAlpha = a;
+      ctx.lineCap = 'round';
+
+      // 余弦线（沿 x 轴）
+      ctx.strokeStyle = COL.cos; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, cy); ctx.stroke();
+
+      // 正弦线（竖直）
+      ctx.strokeStyle = COL.sin;
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, cy); ctx.stroke();
+
+      // 辅助虚线
+      ctx.globalAlpha = a * 0.4;
+      ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.4;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(cx, py); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+
+      // 标签
+      ctx.font = '600 12px ui-monospace, Menlo, Consolas, monospace';
+      ctx.textBaseline = 'middle';
+      const leftSide = px > cx;
+      ctx.textAlign = leftSide ? 'right' : 'left';
+      ctx.fillStyle = COL.sin;
+      ctx.fillText('sin θ', px + (leftSide ? -9 : 9), (py + cy) / 2);
+
+      if (Math.abs(px - cx) > 46) {
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillStyle = COL.cos;
+        ctx.fillText('cos θ', (cx + px) / 2, cy - 6);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // 半径
+    ctx.strokeStyle = COL.radius; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
+
+    // 动点
+    ctx.beginPath(); ctx.arc(px, py, 6.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = COL.radius; ctx.stroke();
+
+    // 原点
+    ctx.beginPath(); ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#475569'; ctx.fill();
+
+    // 角标签
+    ctx.font = '12px ui-monospace, Menlo, Consolas, monospace';
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const la = ang / 2;
+    ctx.fillText('θ', cx + Math.cos(la) * R * 0.4, cy - Math.sin(la) * R * 0.4);
+  }
+
+  /* ================= 绘制：函数图像 ================= */
+  function drawGraph() {
+    const { w, h } = fitCanvas(graphCanvas, gctx);
+    const ctx = gctx;
+    ctx.clearRect(0, 0, w, h);
+
+    const padL = 40, padR = 16, padT = 20, padB = 28;
+    const x0 = padL, x1 = w - padR, y0 = padT, y1 = h - padB;
+    const cy = (y0 + y1) / 2;
+    const halfH = (y1 - y0) / 2 / 1.15;
+    const X = d => x0 + (d / 360) * (x1 - x0);
+    const Y = v => cy - v * halfH;
+
+    // 网格
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+    [-1, -0.5, 0.5, 1].forEach(v => {
+      ctx.beginPath(); ctx.moveTo(x0, Y(v)); ctx.lineTo(x1, Y(v)); ctx.stroke();
+    });
+    [90, 180, 270].forEach(d => {
+      ctx.beginPath(); ctx.moveTo(X(d), y0); ctx.lineTo(X(d), y1); ctx.stroke();
+    });
+
+    // 坐标轴
+    ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(x0, cy); ctx.lineTo(x1, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); ctx.stroke();
+
+    // 刻度
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px ui-monospace, Menlo, Consolas, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    [0, 90, 180, 270, 360].forEach(d => ctx.fillText(d + '°', X(d), y1 + 5));
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('1', x0 - 6, Y(1));
+    ctx.fillText('-1', x0 - 6, Y(-1));
+
+    // 曲线
+    const drawCurve = (fn, color) => {
+      ctx.beginPath();
+      for (let d = 0; d <= 360; d++) {
+        const px = X(d), py = Y(fn(d * Math.PI / 180));
+        d === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.strokeStyle = color; ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.stroke();
+    };
+    drawCurve(Math.sin, COL.sin);
+    drawCurve(Math.cos, COL.cos);
+
+    // θ 位置标记
+    if (S.revealT > 0) {
+      const d = ((S.theta % 360) + 360) % 360;
+      ctx.globalAlpha = S.revealT;
+
+      ctx.strokeStyle = COL.radius; ctx.lineWidth = 1.4;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.moveTo(X(d), y0); ctx.lineTo(X(d), y1); ctx.stroke();
+      ctx.setLineDash([]);
+
+      const s = Math.sin(d * Math.PI / 180);
+      const c = Math.cos(d * Math.PI / 180);
+      dot(ctx, X(d), Y(s), COL.sin);
+      dot(ctx, X(d), Y(c), COL.cos);
+      ctx.globalAlpha = 1;
+    }
+
+    // 图例
+    ctx.font = '600 11.5px ui-monospace, Menlo, Consolas, monospace';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillStyle = COL.sin; ctx.fillText('sin θ', x1 - 4, y0 - 16);
+    ctx.fillStyle = COL.cos; ctx.fillText('cos θ', x1 - 4, y0 - 2);
+  }
+
+  function dot(ctx, x, y, color) {
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.lineWidth = 2.6; ctx.strokeStyle = color; ctx.stroke();
+  }
+
+  /* ================= 主循环 ================= */
+  function loop(ts) {
+    if (!S.lastTs) S.lastTs = ts;
+    const dt = Math.min(0.05, (ts - S.lastTs) / 1000);
+    S.lastTs = ts;
+
+    // 角度动画（走最短路径）
+    let diff = S.target - S.theta;
+    while (diff > 180) diff -= 360;
+    while (diff < -180) diff += 360;
+    if (Math.abs(diff) < 0.05) S.theta = S.target;
+    else S.theta += diff * Math.min(1, dt * 8);
+
+    // 揭晓动画
+    if (S.reveal && S.revealT < 1) S.revealT = Math.min(1, S.revealT + dt * 2.6);
+
+    // 计时
+    if (S.running && !S.locked) {
+      S.timeLeft -= dt;
+      if (S.timeLeft <= 0) {
+        S.timeLeft = 0;
+        timerBar.style.width = '0%';
+        answer(-1);
+      } else {
+        const p = S.timeLeft / TIME_MAX;
+        timerBar.style.width = (p * 100).toFixed(1) + '%';
+        timerBar.className = 'timer-fill' + (p < 0.25 ? ' danger' : p < 0.55 ? ' warn' : '');
+      }
+    }
+
+    drawCircle();
+    drawGraph();
+    requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', startGame);
+  window.addEventListener('resize', () => { S.lastTs = 0; });
+  document.addEventListener('gesturestart', e => e.preventDefault());
+
+  updateHUD();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
